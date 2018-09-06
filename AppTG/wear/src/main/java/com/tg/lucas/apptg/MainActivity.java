@@ -26,17 +26,7 @@ public class MainActivity extends WearableActivity {
         Log.d(TAG, "createDatabase: init");
         CoordinatesDbHelper dbHelper = new CoordinatesDbHelper(getApplicationContext());
 
-        // Gets the data repository in write mode
+        // Cria o banco de dados
         dbHelper.getWritableDatabase();
-
-        // Create a new map of values, where column names are the keys
-        /*
-        ContentValues values = new ContentValues();
-        values.put(CoordinatesContract.CoordinatesEntry.COLUMN_NODE_ID, 1);
-
-
-        // Insert the new row, returning the primary key value of the new row
-        long newRowId = db.insert(CoordinatesContract.CoordinatesEntry.TABLE_NAME, null, values);
-        */
     }
 }
