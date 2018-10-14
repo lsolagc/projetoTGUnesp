@@ -43,33 +43,34 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
                 " (" + columnNodeId + ", " + columnNodeLat + ", " + columnNodeLng + ") " +
                 "VALUES (  " +
                 _nodeId + ", " +
-                "COALESCE((SELECT "+columnNodeLat+" FROM "+tableName+" WHERE "+columnNodeId+"="+_nodeId+"),"+_nodeLat + "), " +
-                "COALESCE((SELECT "+columnNodeLng+" FROM "+tableName+" WHERE "+columnNodeId+"="+_nodeId+"),"+_nodelng + ")" +
+                "COALESCE((SELECT " + columnNodeLat + " FROM " + tableName + " WHERE " + columnNodeId + "=" + _nodeId + ")," + _nodeLat + "), " +
+                "COALESCE((SELECT " + columnNodeLng + " FROM " + tableName + " WHERE " + columnNodeId + "=" + _nodeId + ")," + _nodelng + ")" +
                 ");";
         db.execSQL(sqlQuery);
     }
 
-    public void verifyBounds(SQLiteDatabase db, MapXmlParser.Bounds bounds) {
+    public void insertBounds(SQLiteDatabase db, MapXmlParser.Bounds bounds) {
         String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_BOUNDS;
         String columnMaxLat = CoordinatesContract.CoordinatesEntry.COLUMN_MAX_LAT;
         String columnMinLat = CoordinatesContract.CoordinatesEntry.COLUMN_MIN_LAT;
         String columnMaxLon = CoordinatesContract.CoordinatesEntry.COLUMN_MAX_LNG;
         String columnMinLon = CoordinatesContract.CoordinatesEntry.COLUMN_MIN_LNG;
-        String sqlQuery = null;
+        String sqlQuery;
 
-        String sqlSelectQuery = "SELECT * FROM "+tableName+";";
+        String sqlSelectQuery = "SELECT * FROM " + tableName + ";";
 
         Cursor cursor = db.rawQuery(sqlSelectQuery, new String[]{});
-        if(cursor.moveToFirst()){
-            Log.d(TAG, "verifyBounds: existe resposta no SELECT");
+        if (cursor.moveToFirst()) {
+            Log.d(TAG, "insertBounds: existe resposta no SELECT");
             sqlQuery = "UPDATE " + tableName +
-                    " SET '"+ columnMaxLat + "'="+bounds._maxLat+", '" + columnMinLat + "', '" + columnMaxLon + "', '"+columnMinLon+"' " +
-                    "WHERE '_id' = 1;";
-        }
-        else{
-            Log.d(TAG, "verifyBounds: não existem entradas na tabela bounds");
+                    " SET " + columnMaxLat + "=" + bounds._maxLat + ", " +
+                    columnMinLat + "=" + bounds._minLat + ", " +
+                    columnMaxLon + "=" + bounds._maxLng + ", " +
+                    columnMinLon + "=" + bounds._minLng + ";";
+        } else {
+            Log.d(TAG, "insertBounds: não existem entradas na tabela bounds");
             sqlQuery = "INSERT INTO " + tableName +
-                    " (" + columnMaxLat + ", " + columnMinLat + ", " + columnMaxLon + ", "+columnMinLon+") " +
+                    " (" + columnMaxLat + ", " + columnMinLat + ", " + columnMaxLon + ", " + columnMinLon + ") " +
                     "VALUES (  " +
                     bounds._maxLat + ", " +
                     bounds._minLat + ", " +
@@ -78,8 +79,23 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
                     ");";
         }
         db.execSQL(sqlQuery);
-        /*
+    }
 
-        */
+    public MapXmlParser.Bounds getBounds(SQLiteDatabase db){
+        String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_BOUNDS;
+        MapXmlParser.Bounds bounds = null;
+
+        String sqlSelectQuery = "SELECT * FROM " + tableName + ";";
+
+        Cursor cursor = db.rawQuery(sqlSelectQuery, new String[]{});
+        if(cursor.moveToFirst()){
+            double _maxLat = cursor.getDouble(1);
+            double _minLat = cursor.getDouble(2);
+            double _maxLng = cursor.getDouble(3);
+            double _minLng = cursor.getDouble(4);
+            bounds = new MapXmlParser.Bounds(_maxLat, _maxLng, _minLat, _minLng);
+        }
+
+        return bounds;
     }
 }

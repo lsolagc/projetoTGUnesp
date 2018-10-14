@@ -22,7 +22,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "mobile/" + MainActivity.class.getSimpleName() + "/";
     private static final int EXTERNAL_STORAGE_REQUEST_CODE = 101;
-    private MapXmlParser parser = new MapXmlParser();
+    private MapXmlParser parser;
     private CoordinatesDbHelper dbHelper;
 
     @Override
@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
+        parser = new MapXmlParser(getApplicationContext());
         createDatabase();
         verifyPermissions();
     }
@@ -71,22 +71,21 @@ public class MainActivity extends AppCompatActivity {
         try {
             FileInputStream fileInputStream = new FileInputStream(file);
             parser.parse(fileInputStream);
-            insertBounds();
+            parseBounds();
             insertNodes();
         } catch (XmlPullParserException | IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void insertBounds() {
-        MapXmlParser.Bounds bounds = parser.getBounds();
+    private void parseBounds() {
+        MapXmlParser.Bounds bounds = parser.getNewBounds();
         CoordinatesDbHelper dbHelper = new CoordinatesDbHelper(getApplicationContext());
-        dbHelper.verifyBounds(dbHelper.getWritableDatabase(), bounds);
+        dbHelper.insertBounds(dbHelper.getWritableDatabase(), bounds);
     }
 
     private void insertNodes() {
         List nodeLatLng = parser.getNodeLatLng();
-        //Log.d(TAG, "insertNodes: nodeLatLng.size = "+nodeLatLng.size());
         CoordinatesDbHelper dbHelper = new CoordinatesDbHelper(getApplicationContext());
         for(int i = 0; i< nodeLatLng.size(); i++){
             MapXmlParser.Entry node = (MapXmlParser.Entry) nodeLatLng.get(i);
@@ -94,10 +93,8 @@ public class MainActivity extends AppCompatActivity {
             double _nodeLat = node.node_lat;
             double _nodeLng = node.node_lng;
             dbHelper.insertOrReplace(dbHelper.getWritableDatabase(), _nodeId, _nodeLat, _nodeLng);
-            //Log.d(TAG, "insertNodes: node inserido com sucesso! "+i);
         }
         dbHelper.close();
-        //Log.d(TAG, "insertNodes: TODOS OS NODES FORAM INSERIDOS COM SUCESSO");
     }
 
 }
