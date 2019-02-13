@@ -1,3 +1,4 @@
 <resources>
     <string name="hello_world">Hello Round World!</string>
+    <string name="geocodeAPIkey" translatable="false">AIzaSyA-T1XXgLiaReZ326IXreVF8HcuZCOyZ1Q</string>
 </resources>
