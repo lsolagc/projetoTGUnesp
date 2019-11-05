@@ -4,6 +4,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.location.Location;
 import android.util.Log;
 
 public class CoordinatesDbHelper extends SQLiteOpenHelper {
@@ -79,6 +80,7 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
                     ");";
         }
         db.execSQL(sqlQuery);
+        cursor.close();
     }
 
     public MapXmlParser.Bounds getBounds(SQLiteDatabase db){
@@ -95,7 +97,28 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
             double _minLng = cursor.getDouble(4);
             bounds = new MapXmlParser.Bounds(_maxLat, _maxLng, _minLat, _minLng);
         }
-
+        cursor.close();
         return bounds;
     }
+
+    public String getNearestLocation(SQLiteDatabase db, Location location){
+        String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES;
+        Double lat = location.getLatitude();
+        Double lng = location.getLongitude();
+        Cursor cursor = db.query(tableName,
+                new String[]{"*"},
+                "ABS(" + lng + " - node_lng) <= ABS(" + lat + " - node_lat)",
+                null,
+                null,
+                null,
+                " ABS(" + lat + " - node_lat)",
+                String.valueOf(1)
+                );
+        cursor.moveToFirst();
+        String way = cursor.getString(cursor.getColumnIndex("way_name"));
+        Log.d(TAG, "getNearestLocation: test");
+        cursor.close();
+        return way;
+    }
+
 }

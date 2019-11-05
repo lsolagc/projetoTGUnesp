@@ -1,11 +1,9 @@
 package com.tg.lucas.apptg;
 
-import android.app.Activity;
-import android.app.Application;
 import android.content.Context;
+import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.util.Xml;
-import android.view.View;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -24,6 +22,8 @@ class MapXmlParser {
     private Bounds newBounds = null;
     private Bounds registeredBounds;
     private final Context context;
+    private TextToSpeech TTS;
+
 
     List getNodeLatLng() {
         return nodeLatLng;
@@ -90,42 +90,41 @@ class MapXmlParser {
         // As tags que serão reconhecidas pelo parser são: node, way, nd, tag. Destas, apenas
         // node e way estão diretamente disponíveis na raíz, então apenas o reconhecimento
         // destas deve ser implementado neste momento.
+        if  (newBounds != null && registeredBounds != null &&
+                (newBounds._maxLat < registeredBounds._maxLat &&
+                newBounds._minLat > registeredBounds._minLat &&
+                newBounds._maxLng < registeredBounds._maxLng &&
+                newBounds._minLng > registeredBounds._minLng)
+            )
+        {
+            eventType = XmlPullParser.END_DOCUMENT;
+        }
         while(eventType != XmlPullParser.END_DOCUMENT){
-            if(newBounds != null && registeredBounds != null &&
-                    newBounds._maxLat == registeredBounds._maxLat &&
-                    newBounds._minLat == registeredBounds._minLat &&
-                    newBounds._maxLng == registeredBounds._maxLng &&
-                    newBounds._minLng == registeredBounds._minLng){
-
-                eventType = XmlPullParser.END_DOCUMENT;
+            switch (eventType){
+                case XmlPullParser.START_TAG:
+                    String tagName = parser.getName();
+                    switch (tagName) {
+                        case "bounds":
+                            parseBounds(parser);
+                            break;
+                        case "node":
+//                            Log.d(TAG, "readXml: NODE encontrado");
+                            getNodeLatLng().add(readNode(parser));
+                            break;
+                        case "way":
+//                            Log.d(TAG, "readXml: WAY encontrado");
+                            getNodeWay().add(readWay(parser));
+                            break;
+                    }
+                    break;
+                default:
+                    break;
             }
-            else{
-                switch (eventType){
-                    case XmlPullParser.START_TAG:
-                        String tagName = parser.getName();
-                        switch (tagName) {
-                            case "bounds":
-                                parseBounds(parser);
-                                break;
-                            case "node":
-                                Log.d(TAG, "readXml: NODE encontrado");
-                                getNodeLatLng().add(readNode(parser));
-                                break;
-                            case "way":
-                                Log.d(TAG, "readXml: WAY encontrado");
-                                getNodeWay().add(readWay(parser));
-                                break;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                eventType = parser.next();
-            }
+            eventType = parser.next();
         }
         // Temos as duas listas, agora é preciso inserí-las na tabela. Ambas as inserções devem
         // verificar se o nodeId já existe antes de inserir o novo conjunto de dados.
-        dbHelper.close();
+       dbHelper.close();
     }
 
     private void parseBounds(XmlPullParser parser) {
@@ -173,26 +172,30 @@ class MapXmlParser {
         double _nodeLng = -1;
         String _wayName = "";
         List<Entry> nodeWay = new ArrayList();
+        String childName;
 
         // A tag way possui tags filhas: nd e tag. Estas filhas devem ser reconhecidas e manipuladas
         // corretamente.
         parser.require(XmlPullParser.START_TAG, ns, "way");
-        while (parser.next() != XmlPullParser.END_TAG) {
-            if (parser.getEventType() != XmlPullParser.START_TAG) {
-                continue;
-            }
-            String childName = parser.getName();
-            if (childName.equals("nd")) {
-                parser.require(XmlPullParser.START_TAG, ns, "nd");
-                _nodeId = Double.parseDouble(parser.getAttributeValue(null, "ref"));
-                nodeWay.add(new Entry(_nodeId, _nodeLat, _nodeLng, _wayName));
-            } else if (childName.equals("tag")){
-                parser.require(XmlPullParser.START_TAG, ns, "tag");
-                if(parser.getAttributeValue(null, "k").equals("name")){
-                    _wayName = parser.getAttributeValue(null, "v");
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            childName = parser.getName();
+            if (parser.getEventType() == XmlPullParser.START_TAG) {
+                if (childName.equals("nd")) {
+                    parser.require(XmlPullParser.START_TAG, ns, "nd");
+                    _nodeId = Double.parseDouble(parser.getAttributeValue(null, "ref"));
+                    nodeWay.add(new Entry(_nodeId, _nodeLat, _nodeLng, _wayName));
+                } else if (childName.equals("tag")){
+                    parser.require(XmlPullParser.START_TAG, ns, "tag");
+                    if(parser.getAttributeValue(null, "k").equals("name")){
+                        Log.d(TAG, "readWay: name");
+                        _wayName = parser.getAttributeValue(null, "v");
+                        break;
+                    }
                 }
-            } else {
-                skip(parser);
+                else {
+                    skip(parser);
+                }
+
             }
         }
 
