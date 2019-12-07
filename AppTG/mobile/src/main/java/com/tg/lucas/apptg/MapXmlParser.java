@@ -75,7 +75,6 @@ class MapXmlParser {
             XmlPullParser parser = Xml.newPullParser();
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
             parser.setInput(in, null);
-            //parser.nextTag();
             readXml(parser);
         }finally {
             in.close();
@@ -86,7 +85,6 @@ class MapXmlParser {
         int eventType = parser.getEventType();
         CoordinatesDbHelper dbHelper = new CoordinatesDbHelper(this.context);
         registeredBounds = dbHelper.getBounds(dbHelper.getWritableDatabase());
-        //parser.require(XmlPullParser.START_TAG, ns, "osm");
         // As tags que serão reconhecidas pelo parser são: node, way, nd, tag. Destas, apenas
         // node e way estão diretamente disponíveis na raíz, então apenas o reconhecimento
         // destas deve ser implementado neste momento.

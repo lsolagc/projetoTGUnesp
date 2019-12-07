@@ -71,7 +71,7 @@ public class MainActivity extends WearableActivity implements
         // Enables Always-on
         setAmbientEnabled();
 
-
+        setupTTS();
         verifyPermissions();
         if(ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
@@ -106,7 +106,7 @@ public class MainActivity extends WearableActivity implements
 
         parser = new MapXmlParser(getApplicationContext());
         createDatabase();
-        setupTTS();
+
 
         DownloadAndReadMap();
 
@@ -188,47 +188,71 @@ public class MainActivity extends WearableActivity implements
             public void run() {
                 try {
                     try {
-                        falar = "Baixando mapa da área";
-                        TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
-
-                        String downloadLink = "https://api.openstreetmap.org/api/0.6/map?bbox="
-                                +minLng+","+minLat+","+maxLng+","+maxLat+"";
-                        URL url = new URL(downloadLink);
-                        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                        con.setRequestMethod("GET");
-                        int status = con.getResponseCode();
-                        Log.d(TAG, "run: status"+ status);
-
-                        BufferedReader in = new BufferedReader(
-                                new InputStreamReader(con.getInputStream()));
-                        String inputLine;
-                        StringBuffer content = new StringBuffer();
-                        while ((inputLine = in.readLine()) != null) {
-                            content.append(inputLine);
+                        boolean downloadMap = false;
+                        MapXmlParser.Bounds bounds = dbHelper.getBounds(dbHelper.getWritableDatabase());
+                        if(bounds == null){
+                            bounds = new MapXmlParser.Bounds(Float.NEGATIVE_INFINITY,
+                                                            Float.NEGATIVE_INFINITY,
+                                                            Float.POSITIVE_INFINITY,
+                                                            Float.POSITIVE_INFINITY);
+                        }
+                        if(bounds._maxLat < maxLat ||
+                            bounds._minLat > minLat ||
+                            bounds._maxLng < maxLng ||
+                            bounds._minLng > minLng)
+                        {
+                                downloadMap = true;
                         }
 
-                        try {
-                            String text = content.toString();
-                            outputStream = openFileOutput("MapFile.txt", MODE_PRIVATE);
-                            outputStream.write(text.getBytes());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        finally {
-                            try {
-                                outputStream.close();
+                        if(isOnline() && downloadMap){
+                            falar = "Baixando mapa da área";
+                            TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
+
+                            String downloadLink = "https://api.openstreetmap.org/api/0.6/map?bbox="
+                                    +minLng+","+minLat+","+maxLng+","+maxLat+"";
+                            URL url = new URL(downloadLink);
+                            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                            con.setRequestMethod("GET");
+                            int status = con.getResponseCode();
+                            Log.d(TAG, "run: status"+ status);
+
+                            BufferedReader in = new BufferedReader(
+                                    new InputStreamReader(con.getInputStream()));
+                            String inputLine;
+                            StringBuffer content = new StringBuffer();
+                            while ((inputLine = in.readLine()) != null) {
+                                content.append(inputLine);
                             }
-                            catch (IOException e){
+
+                            try {
+                                String text = content.toString();
+                                outputStream = openFileOutput("MapFile.txt", MODE_PRIVATE);
+                                outputStream.write(text.getBytes());
+                            } catch (IOException e) {
                                 e.printStackTrace();
                             }
+                            finally {
+                                try {
+                                    outputStream.close();
+                                }
+                                catch (IOException e){
+                                    e.printStackTrace();
+                                }
+                            }
+                            File initialFile = new File("/data/data/com.tg.lucas.apptg/files/MapFile.txt");
+                            InputStream stream = new FileInputStream(initialFile);
+
+                            falar = "Inserindo endereços no banco de dados";
+                            TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
+
+                            parseXml(stream);
                         }
-                        File initialFile = new File("/data/data/com.tg.lucas.apptg/files/MapFile.txt");
-                        InputStream stream = new FileInputStream(initialFile);
+                        else if(!isOnline() && downloadMap){
+                            falar = "Aplicativo offline. Por favor, conecte-se a uma rede Wi-Fi para " +
+                                    "baixar o mapa.";
+                            TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
+                        }
 
-                        falar = "Inserindo endereços no banco de dados";
-                        TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
-
-                        parseXml(stream);
                     }
                     catch (Exception e){
                         Log.d(TAG, "doInBackground: " + e.getMessage(), e);
@@ -245,7 +269,8 @@ public class MainActivity extends WearableActivity implements
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
                 PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED) {
+                PackageManager.PERMISSION_GRANTED)
+        {
             String[] permissions = {Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION};
             ActivityCompat.requestPermissions(this, permissions, LOCATION_REQUEST_CODE);
@@ -263,23 +288,17 @@ public class MainActivity extends WearableActivity implements
     }
 
     private void verifyPermissions() {
-        String[] permissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                Manifest.permission.READ_EXTERNAL_STORAGE,
+        String[] permissions = {Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION};
-        // Explicar para o usuário o motivo da permissão de maneira ASSÍNCRONA
-        //
-        //--------------------------------------------------------------------
-        if (ContextCompat.checkSelfPermission(this.getApplicationContext(),
-                Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, permissions, EXTERNAL_STORAGE_REQUEST_CODE);
-        } else if(ContextCompat.checkSelfPermission(this.getApplicationContext(),
+        falar = "Este aplicativo precisa utilizar o GPS do relógio para funcionar corretamente. " +
+                "Por favor, forneça as permissões necessárias ao tocar duas vezes no canto inferior" +
+                "direito da tela, com alguns segundos de intervalo.";
+        TTS.speak(falar, TextToSpeech.QUEUE_FLUSH, null);
+        if(ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, permissions, LOCATION_REQUEST_CODE);
         }
-        else{
-            //TODO: descomentar o parseXml()
-            //parseXml();
-        }
+
     }
 
     @Override
@@ -345,7 +364,7 @@ public class MainActivity extends WearableActivity implements
                         cv,
                         "" + columnNodeId + " = ?",
                         args);
-                }
+            }
         }
     }
 

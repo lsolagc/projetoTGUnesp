@@ -10,6 +10,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.View;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -98,4 +99,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    public void onClick(View view) {
+    }
 }
