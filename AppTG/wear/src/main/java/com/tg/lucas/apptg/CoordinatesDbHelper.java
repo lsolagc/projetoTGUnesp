@@ -115,9 +115,11 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
                 );
         cursor.moveToFirst();
         String way = cursor.getString(cursor.getColumnIndex("way_name"));
+        String places = cursor.getString(cursor.getColumnIndex("near_places"));
         Log.d(TAG, "getNearestLocation: test");
         cursor.close();
-        return way;
+        String result = "" + way + ";" + places + "";
+        return result;
     }
 
 }
