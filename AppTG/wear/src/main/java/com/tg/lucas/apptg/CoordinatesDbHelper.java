@@ -20,6 +20,7 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(CoordinatesContract.CoordinatesEntry.SQL_CREATE_TABLE_COORDINATES);
+        db.execSQL(CoordinatesContract.CoordinatesEntry.SQL_CREATE_TABLE_PLACES);
         db.execSQL(CoordinatesContract.CoordinatesEntry.SQL_CREATE_TABLE_BOUNDS);
     }
 
@@ -35,17 +36,15 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-    public void insertOrReplace(SQLiteDatabase db, double _nodeId, double _nodeLat, double _nodelng) {
+//    public void insertOrReplace(SQLiteDatabase db, double _nodeId, double _nodeLat, double _nodelng) {
+    public void insertOrReplace(SQLiteDatabase db, double _nodeLat, double _nodelng) {
         String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES;
-        String columnNodeId = CoordinatesContract.CoordinatesEntry.COLUMN_NODE_ID;
         String columnNodeLat = CoordinatesContract.CoordinatesEntry.COLUMN_NODE_LAT;
         String columnNodeLng = CoordinatesContract.CoordinatesEntry.COLUMN_NODE_LNG;
         String sqlQuery = "INSERT OR REPLACE INTO " + tableName +
-                " (" + columnNodeId + ", " + columnNodeLat + ", " + columnNodeLng + ") " +
+                " (" + columnNodeLat + ", " + columnNodeLng + ") " +
                 "VALUES (  " +
-                _nodeId + ", " +
-                "COALESCE((SELECT " + columnNodeLat + " FROM " + tableName + " WHERE " + columnNodeId + "=" + _nodeId + ")," + _nodeLat + "), " +
-                "COALESCE((SELECT " + columnNodeLng + " FROM " + tableName + " WHERE " + columnNodeId + "=" + _nodeId + ")," + _nodelng + ")" +
+                  _nodeLat + ", " + _nodelng + " " +
                 ");";
         db.execSQL(sqlQuery);
     }

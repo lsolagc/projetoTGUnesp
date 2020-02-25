@@ -5,7 +5,11 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.location.Address;
 import android.location.Location;
+import android.location.Geocoder;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
@@ -25,6 +29,9 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.BufferedReader;
@@ -34,10 +41,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends WearableActivity implements
         ActivityCompat.OnRequestPermissionsResultCallback,
@@ -54,14 +69,12 @@ public class MainActivity extends WearableActivity implements
     private CoordinatesDbHelper dbHelper;
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
-    private OutputStream outputStream;
-    private float maxLat;
-    private float maxLng;
-    private float minLat;
-    private float minLng;
+//    private OutputStream outputStream;
     private Location location;
     private TextToSpeech TTS;
     private String falar;
+    private boolean offlineMapReady = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,11 +94,10 @@ public class MainActivity extends WearableActivity implements
                     .addApi(LocationServices.API)
                     .build();
 
-            // Create the LocationRequest object
             mLocationRequest = LocationRequest.create()
                     .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                    .setInterval(10 * 1000)        // 10 seconds, in milliseconds
-                    .setFastestInterval(1 * 1000); // 1 second, in milliseconds
+                    .setInterval(10 * 1000)        // 10 segundos, em milissegundos
+                    .setFastestInterval(1 * 1000); // 1 segundo, em milissegundos
 
             mGoogleApiClient.connect();
             if(mGoogleApiClient.isConnecting()){
@@ -108,7 +120,9 @@ public class MainActivity extends WearableActivity implements
         createDatabase();
 
 
-        DownloadAndReadMap();
+//        DownloadAndReadMap();
+
+        // getWayNames();
 
         Button btn = findViewById(R.id.button_test);
         btn.setOnClickListener(this);
@@ -162,18 +176,13 @@ public class MainActivity extends WearableActivity implements
     private void handleNewLocation(Location _location) {
         Log.d(TAG, _location.toString());
         location = _location;
-        maxLat = (float) _location.getLatitude() + (float)0.05;
-        minLat = (float) _location.getLatitude() - (float)0.05;
-        maxLng = (float) _location.getLongitude() + (float)0.1;
-        minLng = (float) _location.getLongitude() - (float)0.1;
     }
 
     public void falarEndereco(){
         Log.d(TAG, "btn_click: CLICK");
+        String way = "null";
         try {
-            String way = dbHelper.getNearestLocation(dbHelper.getWritableDatabase(), location);
-//            MediaPlayer mp = MediaPlayer.create(this, R.raw.test);
-//            mp.start();
+            way = dbHelper.getNearestLocation(dbHelper.getWritableDatabase(), location);
             falar = "Você está em " + way;
             TTS.speak(falar, TextToSpeech.QUEUE_FLUSH, null);
         }
@@ -188,71 +197,15 @@ public class MainActivity extends WearableActivity implements
             public void run() {
                 try {
                     try {
-                        boolean downloadMap = false;
-                        MapXmlParser.Bounds bounds = dbHelper.getBounds(dbHelper.getWritableDatabase());
-                        if(bounds == null){
-                            bounds = new MapXmlParser.Bounds(Float.NEGATIVE_INFINITY,
-                                                            Float.NEGATIVE_INFINITY,
-                                                            Float.POSITIVE_INFINITY,
-                                                            Float.POSITIVE_INFINITY);
-                        }
-                        if(bounds._maxLat < maxLat ||
-                            bounds._minLat > minLat ||
-                            bounds._maxLng < maxLng ||
-                            bounds._minLng > minLng)
-                        {
-                                downloadMap = true;
-                        }
-
-                        if(isOnline() && downloadMap){
-                            falar = "Baixando mapa da área";
-                            TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
-
-                            String downloadLink = "https://api.openstreetmap.org/api/0.6/map?bbox="
-                                    +minLng+","+minLat+","+maxLng+","+maxLat+"";
-                            URL url = new URL(downloadLink);
-                            HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                            con.setRequestMethod("GET");
-                            int status = con.getResponseCode();
-                            Log.d(TAG, "run: status"+ status);
-
-                            BufferedReader in = new BufferedReader(
-                                    new InputStreamReader(con.getInputStream()));
-                            String inputLine;
-                            StringBuffer content = new StringBuffer();
-                            while ((inputLine = in.readLine()) != null) {
-                                content.append(inputLine);
-                            }
-
-                            try {
-                                String text = content.toString();
-                                outputStream = openFileOutput("MapFile.txt", MODE_PRIVATE);
-                                outputStream.write(text.getBytes());
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            finally {
-                                try {
-                                    outputStream.close();
-                                }
-                                catch (IOException e){
-                                    e.printStackTrace();
-                                }
-                            }
-                            File initialFile = new File("/data/data/com.tg.lucas.apptg/files/MapFile.txt");
+                            File initialFile = new File("/data/data/com.tg.lucas.apptg/files/sorocaba.xml");
                             InputStream stream = new FileInputStream(initialFile);
 
                             falar = "Inserindo endereços no banco de dados";
                             TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
 
                             parseXml(stream);
-                        }
-                        else if(!isOnline() && downloadMap){
-                            falar = "Aplicativo offline. Por favor, conecte-se a uma rede Wi-Fi para " +
-                                    "baixar o mapa.";
-                            TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
-                        }
-
+                            offlineMapReady = true;
+//                        }
                     }
                     catch (Exception e){
                         Log.d(TAG, "doInBackground: " + e.getMessage(), e);
@@ -318,7 +271,7 @@ public class MainActivity extends WearableActivity implements
             parser.parse(inputStream);
             parseBounds();
             insertNodes();
-            insertWayNames();
+//            insertWayNames();
             Log.d(TAG, "parseXml: fim do parse");
             falar = "Banco de dados pronto. Toque na tela para ouvir o nome da rua onde você está agora.";
             TTS.speak(falar, TextToSpeech.QUEUE_ADD, null);
@@ -342,7 +295,8 @@ public class MainActivity extends WearableActivity implements
             double _nodeId = node.node_id;
             double _nodeLat = node.node_lat;
             double _nodeLng = node.node_lng;
-            dbHelper.insertOrReplace(dbHelper.getWritableDatabase(), _nodeId, _nodeLat, _nodeLng);
+//            dbHelper.insertOrReplace(dbHelper.getWritableDatabase(), _nodeId, _nodeLat, _nodeLng);
+            dbHelper.insertOrReplace(dbHelper.getWritableDatabase(), _nodeLat, _nodeLng);
         }
         dbHelper.close();
     }
@@ -415,5 +369,98 @@ public class MainActivity extends WearableActivity implements
     @Override
     public void onClick(android.view.View v) {
         falarEndereco();
+    }
+
+    public void getWayNames(){
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                    SQLiteDatabase db = dbHelper.getWritableDatabase();
+                    Cursor cursor = db.query(CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES,
+                            new String[]{"*"},
+                            "",
+                            null,
+                            null,
+                            null,
+                            ""
+                    );
+                    while(cursor.moveToNext()){
+                        try{
+                            Geocoder geocoder = new Geocoder(getApplicationContext());
+                            double lat = Double.parseDouble(cursor.getString(1));
+                            double lng = Double.parseDouble(cursor.getString(2));
+                            List<Address> addresses = geocoder.getFromLocation(lat,lng,1);
+                            String addr = addresses.get(0).getThoroughfare() + ", " + addresses.get(0).getSubThoroughfare();
+
+                            String sqlQuery = "UPDATE " + CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES +
+                                    " SET " + CoordinatesContract.CoordinatesEntry.COLUMN_WAY_NAME + "=\"" + addr + "\"" +
+                                    " WHERE _id=" + cursor.getString(0) + ";";
+                            db.execSQL(sqlQuery);
+
+                            String downloadLink = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=" +
+                                    cursor.getString(1) + "," +
+                                    cursor.getString(2) +
+                                    "&type=establishment&radius=1000&key=" + getString(R.string.API_KEY) + "";
+
+                            URL url = new URL(downloadLink);
+                            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+                            con.setReadTimeout(15000);
+                            con.setConnectTimeout(15000);
+                            con.setRequestMethod("GET");
+                            con.setDoInput(true);
+                            con.setRequestProperty("Connection", "Keep-Alive");
+                            con.setRequestProperty("Content-Type",
+                                    "application/x-www-form-urlencoded");
+                            con.setDoOutput(true);
+                            int status = con.getResponseCode();
+                            BufferedReader in = new BufferedReader(
+                                    new InputStreamReader(con.getInputStream()));
+                            String inputLine;
+                            StringBuffer content = new StringBuffer();
+                            while ((inputLine = in.readLine()) != null) {
+                                content.append(inputLine);
+                            }
+
+                            StringBuilder placesNames = new StringBuilder();
+                            JSONObject json = new JSONObject(content.toString());
+                            JSONArray nearbyPlaces = json.getJSONArray("results");
+                            int regPlaces = 0;
+
+                            for(int i=0; i< nearbyPlaces.length(); i++){
+                                JSONObject jsonObject = nearbyPlaces.getJSONObject(i);
+                                String t = jsonObject.getString("types");
+                                t = t.substring(1, t.length() -1);
+                                String[] types = t.split(",");
+                                List<String> list = Arrays.asList(types);
+
+                                if(list.contains("\"establishment\"")) {
+                                    regPlaces++;
+                                    placesNames.append(jsonObject.getString("name"));
+                                    if(regPlaces < 3) {
+                                        placesNames.append(", ");
+                                    }
+                                    else{
+                                        break;
+                                    }
+                                }
+
+                            }
+
+                            ContentValues cv = new ContentValues();
+                            cv.put(CoordinatesContract.CoordinatesEntry.COLUMN_NEAR_PLACES, placesNames.toString());
+                            db.update(CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES, cv, "_id="+cursor.getString(0), null);
+                            con.disconnect();
+                            Log.d(TAG, "run: " + cursor.getString(0));
+                        }catch (IOException | JSONException e ){
+                            e.printStackTrace();
+                        }
+
+
+
+                    }
+                    cursor.close();
+                    Log.d(TAG, "run: ");
+            }
+        }).start();
     }
 }

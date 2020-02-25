@@ -85,20 +85,20 @@ class MapXmlParser {
     private void readXml(XmlPullParser parser) throws XmlPullParserException, IOException{
         int eventType = parser.getEventType();
         CoordinatesDbHelper dbHelper = new CoordinatesDbHelper(this.context);
-        registeredBounds = dbHelper.getBounds(dbHelper.getWritableDatabase());
+//        registeredBounds = dbHelper.getBounds(dbHelper.getWritableDatabase());
         //parser.require(XmlPullParser.START_TAG, ns, "osm");
         // As tags que serão reconhecidas pelo parser são: node, way, nd, tag. Destas, apenas
         // node e way estão diretamente disponíveis na raíz, então apenas o reconhecimento
         // destas deve ser implementado neste momento.
-        if  (newBounds != null && registeredBounds != null &&
-                (newBounds._maxLat < registeredBounds._maxLat &&
-                newBounds._minLat > registeredBounds._minLat &&
-                newBounds._maxLng < registeredBounds._maxLng &&
-                newBounds._minLng > registeredBounds._minLng)
-            )
-        {
-            eventType = XmlPullParser.END_DOCUMENT;
-        }
+//        if  (newBounds != null && registeredBounds != null &&
+//                (newBounds._maxLat < registeredBounds._maxLat &&
+//                newBounds._minLat > registeredBounds._minLat &&
+//                newBounds._maxLng < registeredBounds._maxLng &&
+//                newBounds._minLng > registeredBounds._minLng)
+//            )
+//        {
+//            eventType = XmlPullParser.END_DOCUMENT;
+//        }
         while(eventType != XmlPullParser.END_DOCUMENT){
             switch (eventType){
                 case XmlPullParser.START_TAG:
@@ -111,10 +111,10 @@ class MapXmlParser {
 //                            Log.d(TAG, "readXml: NODE encontrado");
                             getNodeLatLng().add(readNode(parser));
                             break;
-                        case "way":
-//                            Log.d(TAG, "readXml: WAY encontrado");
-                            getNodeWay().add(readWay(parser));
-                            break;
+//                        case "way":
+////                            Log.d(TAG, "readXml: WAY encontrado");
+//                            getNodeWay().add(readWay(parser));
+//                            break;
                     }
                     break;
                 default:
