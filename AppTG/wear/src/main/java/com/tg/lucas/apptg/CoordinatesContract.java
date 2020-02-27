@@ -12,7 +12,6 @@ public final class CoordinatesContract {
         static final String TABLE_NAME_COORDINATES = "coordinates";
         static final String TABLE_NAME_PLACES = "places";
         static final String TABLE_NAME_BOUNDS = "bounds";
-        static final String COLUMN_NODE_ID = "node_id";
         static final String COLUMN_PLACE_ID = "place_id";
         static final String COLUMN_NODE_LAT = "node_lat";
         static final String COLUMN_NODE_LNG = "node_lng";
@@ -27,7 +26,6 @@ public final class CoordinatesContract {
         static final String SQL_CREATE_TABLE_COORDINATES =
                 "CREATE TABLE IF NOT EXISTS " + CoordinatesEntry.TABLE_NAME_COORDINATES + " ( " +
                         CoordinatesEntry._ID + " INTEGER UNIQUE PRIMARY KEY," +
-//                        CoordinatesEntry.COLUMN_NODE_ID + " DOUBLE UNIQUE, " +
                         CoordinatesEntry.COLUMN_NODE_LAT + " DOUBLE(12,8), " +
                         CoordinatesEntry.COLUMN_NODE_LNG + " DOUBLE(12,8), " +
                         CoordinatesEntry.COLUMN_WAY_NAME + " VARCHAR(255), " +

@@ -27,10 +27,10 @@ import com.google.android.gms.location.LocationServices;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Locale;
 
@@ -96,7 +96,11 @@ public class MainActivity extends WearableActivity implements
         }
 
         parser = new MapXmlParser(getApplicationContext());
-        createDatabase();
+        try {
+            createDatabase();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         Button btn = findViewById(R.id.button_test);
         btn.setOnClickListener(this);
@@ -122,16 +126,28 @@ public class MainActivity extends WearableActivity implements
     @Override
     protected void onResume() {
         super.onResume();
+        if(mGoogleApiClient == null) return;
         if(!mGoogleApiClient.isConnected()){
             mGoogleApiClient.connect();
         }
     }
 
-    private void createDatabase() {
+    private void createDatabase() throws IOException {
         Log.d(TAG, "createDatabase: init");
         dbHelper = new CoordinatesDbHelper(getApplicationContext());
         // Cria o banco de dados
         dbHelper.getWritableDatabase();
+        InputStream mInput = this.getAssets().open("TG.db");
+        String outFileName = "/data/data/com.tg.lucas.apptg/databases/" + "TG.db";
+        OutputStream mOutput = new FileOutputStream(outFileName);
+        byte[] mBuffer = new byte[2024];
+        int mLength;
+        while ((mLength = mInput.read(mBuffer)) > 0) {
+            mOutput.write(mBuffer, 0, mLength);
+        }
+        mOutput.flush();
+        mOutput.close();
+        mInput.close();
     }
 
     private void getLastLocation() {
@@ -204,10 +220,11 @@ public class MainActivity extends WearableActivity implements
     private void verifyPermissions() {
         String[] permissions = {Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION};
-        falar = "Este aplicativo precisa utilizar o GPS do relógio para funcionar corretamente. " +
+        CharSequence faker = "Este aplicativo precisa utilizar o GPS do relógio para funcionar corretamente. " +
                 "Por favor, forneça as permissões necessárias ao tocar duas vezes no canto inferior" +
                 "direito da tela, com alguns segundos de intervalo.";
-        TTS.speak(falar, TextToSpeech.QUEUE_FLUSH, null);
+        TTS.speak(faker, TextToSpeech.QUEUE_FLUSH, null, "0");
+        // speak(faker, TextToSpeech.QUEUE_FLUSH, null);
         if(ContextCompat.checkSelfPermission(this.getApplicationContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, permissions, LOCATION_REQUEST_CODE);
@@ -262,6 +279,7 @@ public class MainActivity extends WearableActivity implements
     @Override
     protected void onPause() {
         super.onPause();
+        if(mGoogleApiClient == null) return;
         if (mGoogleApiClient.isConnected()) {
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
             mGoogleApiClient.disconnect();

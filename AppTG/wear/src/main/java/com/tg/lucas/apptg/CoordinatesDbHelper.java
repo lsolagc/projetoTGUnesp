@@ -36,7 +36,6 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
         onUpgrade(db, oldVersion, newVersion);
     }
 
-//    public void insertOrReplace(SQLiteDatabase db, double _nodeId, double _nodeLat, double _nodelng) {
     public void insertOrReplace(SQLiteDatabase db, double _nodeLat, double _nodelng) {
         String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES;
         String columnNodeLat = CoordinatesContract.CoordinatesEntry.COLUMN_NODE_LAT;
@@ -82,24 +81,6 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
         cursor.close();
     }
 
-    public MapXmlParser.Bounds getBounds(SQLiteDatabase db){
-        String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_BOUNDS;
-        MapXmlParser.Bounds bounds = null;
-
-        String sqlSelectQuery = "SELECT * FROM " + tableName + ";";
-
-        Cursor cursor = db.rawQuery(sqlSelectQuery, new String[]{});
-        if(cursor.moveToFirst()){
-            double _maxLat = cursor.getDouble(1);
-            double _minLat = cursor.getDouble(2);
-            double _maxLng = cursor.getDouble(3);
-            double _minLng = cursor.getDouble(4);
-            bounds = new MapXmlParser.Bounds(_maxLat, _maxLng, _minLat, _minLng);
-        }
-        cursor.close();
-        return bounds;
-    }
-
     public String getNearestLocation(SQLiteDatabase db, Location location){
         String tableName = CoordinatesContract.CoordinatesEntry.TABLE_NAME_COORDINATES;
         Double lat = location.getLatitude();
@@ -111,7 +92,7 @@ public class CoordinatesDbHelper extends SQLiteOpenHelper {
                 null,
                 null,
                 " ABS(" + lat + " - node_lat)",
-                String.valueOf(1)
+                String.valueOf(3)
                 );
         cursor.moveToFirst();
         String way = cursor.getString(cursor.getColumnIndex("way_name"));
